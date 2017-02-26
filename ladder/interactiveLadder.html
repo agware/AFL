@@ -37,6 +37,8 @@
 <body>
 
 <script src="https://d3js.org/d3.v4.min.js"></script>
+<script type="text/javascript" src="utils.js"></script>
+<script type="text/javascript" src="rounds.js"></script>
 
 <script>
 
@@ -55,17 +57,16 @@
         'Melbourne': '#e31a1c'
     };
 
-
     let points = {'Adelaide': 0, 'Brisbane': 0, 'Bulldogs': 0, 'Carlton': 0, 'Collingwood': 0, 'Fremantle': 0, 'GWS': 0, 'Melbourne': 0};
 
     // ToDo: shift into separate file for easy updating?
-    let win = [
+    const certainWin = [
         ['Adelaide', 'Brisbane', 'Bulldogs', 'Carlton'],
         ['Adelaide', 'Brisbane', 'Carlton', 'Melbourne'],
         ['Adelaide', 'Brisbane', 'Melbourne'],
         ['Adelaide', 'Brisbane', 'Collingwood', 'Melbourne']
     ];
-    let draw = [[],[],['Fremantle', 'GWS'],[]];
+    const certainDraw = [[],[],['Fremantle', 'GWS'],[]];
 
     let svg = d3.select('body').append('svg')
         .attr('height', height)
@@ -82,21 +83,37 @@
 
     let ladder = svg.append('g');
 
+    let roundNum = 0;
+
     listClub();
 
-    generateRound(0);
-    listRound(0);
+    generateRound(roundNum);
+    listRound(roundNum);
+    roundNum += 1;
 
-    for (let x = 0; x < win.length; x++) {
-        addWin(win[x]);
-        addDraw(draw[x]);
+    while(roundNum <= certainWin.length) {
+
+        addWin(certainWin[roundNum-1]);
+        addDraw(certainDraw[roundNum-1]);
         sortByPoints();
-        generateRound(x+1);
-        listRound(x+1);
+        generateRound(roundNum);
+        listRound(roundNum);
+
+        roundNum += 1;
     }
 
+    // Next round sidebar
+    // Round roundNum
+    // a vs b
+    // c vs d
+    // e vs f etc.
+
+
+
+
+    // regenerate path each new round? Is this memory heavy?
     for (let x = 0; x < teams.length; x++) {
-        let data = ripData(teams[x], win.length);
+        let data = ripData(teams[x], certainWin.length);
 
         background.append('path')
             .datum(data)
@@ -107,94 +124,6 @@
                 .x(function(d) { return d.x; })
                 .y(function(d) { return d.y; })
             );
-    }
-
-    function generateRound(roundNum) {
-        ladder.append('g')
-            .attr('id', 'round' + roundNum)
-            .selectAll('circle')
-            .data(teams)
-            .enter().append('circle')
-            .attr('cx', function(d,i) {return i*margin.gapX + margin.x; })
-            .attr('cy', margin.gapY*roundNum + margin.y)
-            .attr('r', 20)
-            .attr('id', function(d) {return d + roundNum; })
-            .style('stroke', function(d) {return colour[d]; });
-
-        ladder.select('#round' + roundNum).selectAll('text')
-            .data(teams)
-            .enter().append('text')
-            .attr('x', function(d,i) {return i*margin.gapX + margin.x - (points[d].toString().length == 1 ? 5 : 11); })
-            .attr('y', margin.gapY*roundNum + margin.y + 6)
-            .text(function(d) {return points[d]; });
-    }
-
-    function listRound(roundNum) {
-        ladder.select('#round' + roundNum).append('text')
-            .attr('x', 30)
-            .attr('y', margin.gapY*roundNum + margin.y + 5)
-            .text('Rd ' + roundNum)
-            .style('font-weight', 'bold');
-    }
-
-    function listClub() {
-        svg.append('g')
-            .selectAll('text')
-            .data(teams)
-            .enter().append('text')
-            .attr('x', function(d,i) {return margin.x + margin.gapX*i - 3*(d.length+2); })
-            .attr('y', 40)
-            .text(function(d) {return d; })
-            .style('font-weight', 'bold')
-            .style('font-size', '15px');
-    }
-
-    function addWin(win) {
-        for (let i = 0; i < win.length; i++) {
-            points[win[i]] += 4;
-        }
-    }
-
-    function addDraw(draw) {
-        for (let i = 0; i < draw.length; i++) {
-            points[draw[i]] += 2;
-        }
-    }
-
-    function sortByPoints() {
-        let i = 1;
-        while (i < teams.length) {
-            let highest = true;
-            let count = i - 1;
-            while (highest && count >= 0) {
-                if (points[teams[i]] > points[teams[count]]) {
-                    swapTeams(i, count);
-                    i -= 1;
-                } else {
-                    highest = false;
-                }
-                count -= 1;
-            }
-            i += 1;
-        }
-    }
-
-    function swapTeams(indexA, indexB) {
-        let temp = teams[indexA];
-        teams[indexA] = teams[indexB];
-        teams[indexB] = temp;
-    }
-
-    function ripData(team, roundNum) {
-        let ret = [];
-
-        for (let i = 0; i <= roundNum; i++) {
-            let el = d3.select('#' + team + i);
-            let row = {'x': el.attr('cx'), 'y': el.attr('cy')};
-            ret.push(row);
-        }
-
-        return ret;
     }
 
 </script>
