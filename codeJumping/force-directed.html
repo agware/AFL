@@ -5,70 +5,7 @@
     <title>Code Jumping in WAFL</title>
 
     <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
-
-    <style>
-
-        circle {
-            fill: #000;
-        }
-
-        rect {
-            fill: #fff;
-            stroke: #000;
-            stroke-width: 2px;
-        }
-
-        text {
-            font-family: 'Open Sans', sans-serif;
-            font-size: 18px;
-            fill: #000;
-        }
-
-        .node {
-            fill: #000;
-            stroke: #ccc;
-            stroke-width: 2px;
-        }
-
-        .player {
-            stroke: #fff;
-            stroke-width: 1px;
-        }
-
-        .sport {
-            stroke: #fff;
-            stroke-width: 2px;
-            cursor: pointer;
-        }
-
-        .link {
-            stroke: #777;
-            stroke-width: 2px;
-        }
-
-        .active {
-            stroke: #000;
-            stroke-width: 2px;
-        }
-
-        .ring {
-            fill-opacity: 0;
-        }
-
-        .click {
-            cursor: pointer;
-        }
-
-        .fadeLink {
-            stroke-opacity: 0.2;
-        }
-
-        .fadeNode {
-            fill-opacity: 0.2;
-            stroke-opacity: 0.2;
-        }
-
-    </style>
+    <link rel="stylesheet" href="styles.css">
 
 </head>
 <body>
@@ -104,7 +41,7 @@
     ];
 
     const buttonsDims = {r: 15, ringOffset: 6, textOffset: 5,
-        xOffset: 150, yOffset: 40, xLegendOffset: 270, yLegendOffset: 120};
+        xOffset: 200, yOffset: 80, xLegendOffset: 400, yLegendOffset: 120};
 
     let svg = d3.select('body').append('svg')
         .attr('width', width)
