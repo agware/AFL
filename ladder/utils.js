@@ -50,10 +50,10 @@ function swapTeams(indexA, indexB) {
     teams[indexB] = temp;
 }
 
-function ripData(team, roundNum) {
+function ripData(team, startNum, roundNum) {
     let ret = [];
 
-    for (let i = 0; i <= roundNum; i++) {
+    for (let i = startNum; i <= roundNum; i++) {
         let el = d3.select('#' + team + i);
         let row = {'x': el.attr('cx'), 'y': el.attr('cy')};
         ret.push(row);
