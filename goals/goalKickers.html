@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Goal Kickers</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+
+
+    <style>
+
+        text {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 18px;
+            fill: #000;
+        }
+
+        .new {
+            stroke: #000;
+        }
+
+        .old {
+            stroke: #ADADAD;
+            stroke-dasharray: 5,5;
+        }
+
+        .interactive {
+            cursor: pointer;
+        }
+
+    </style>
+
+</head>
+<body>
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+    const margin = {'height': 500, 'width': 960};
+    const teams = ['Adelaide', 'Brisbane', 'Bulldogs', 'Carlton', 'Collingwood', 'Fremantle', 'GWS', 'Melbourne'];
+    const logo = {
+        'Adelaide': 'Adelaide.svg',
+        'Brisbane': 'Brisbane.svg',
+        'Bulldogs': 'Bulldogs.svg',
+        'Carlton': 'Carlton.svg',
+        'Collingwood': 'Collingwood.svg',
+        'Fremantle': 'Fremantle.svg',
+        'GWS': 'GWS.svg',
+        'Melbourne': 'Melbourne.svg'
+    };
+    const guernsey = [
+        {'x': 0, 'y': 0}, {'x': 10, 'y': 10}, {'x': 15, 'y': 5}, {'x': 15, 'y': 35},
+        {'x': 50, 'y': 35}, {'x': 50, 'y': 5}, {'x': 55, 'y': 10}, {'x': 65, 'y': 0},
+        {'x': 50, 'y': -15}, {'x': 45, 'y': -15}, {'x': 33, 'y': -3}, {'x': 21, 'y': -15},
+        {'x': 16, 'y': -15}, {'x': 0, 'y': 0}
+    ];
+    const colour = {
+        'Adelaide': '#ffe303',
+        'Brisbane': '#b15928',
+        'Bulldogs': '#1f78b4',
+        'Carlton': '#253494',
+        'Collingwood': '#000',
+        'Fremantle': '#6a3d9a',
+        'GWS': '#ff7f00',
+        'Melbourne': '#e31a1c'
+    };
+
+    let svg = d3.select('body').append('svg')
+        .attr('height', margin.height)
+        .attr('width', margin.width);
+
+    let background = svg.append('g');
+    background.append('rect')
+        .attr('height', margin.height)
+        .attr('width', margin.width)
+        .style('fill', '#87CEEB');
+
+    let field = svg.append('g')
+        .attr('transform', 'translate(0,' + margin.height + ')');
+
+    field.append('ellipse')
+        .attr('cx', margin.width/2)
+        .attr('rx', margin.width/2)
+        .attr('ry', margin.height - 200)
+        .style('fill', '#01A611');
+
+    const postMargin = {'offsetHeight': 180, 'goalHeight': 300, 'pointHeight': 220, 'offsetWidth': 240, 'gapWidth': 150};
+
+    // goal posts
+    field.append('rect')
+        .attr('x', postMargin.offsetWidth)
+        .attr('y', -postMargin.pointHeight - postMargin.offsetHeight)
+        .attr('height', postMargin.pointHeight)
+        .attr('width', 10)
+        .style('fill', '#fff');
+
+    field.append('rect')
+        .attr('x', postMargin.offsetWidth + postMargin.gapWidth)
+        .attr('y', -postMargin.goalHeight - postMargin.offsetHeight)
+        .attr('height', postMargin.goalHeight)
+        .attr('width', 10)
+        .style('fill', '#fff');
+
+    // goal posts
+    field.append('rect')
+        .attr('x', postMargin.offsetWidth + postMargin.gapWidth*2)
+        .attr('y', -postMargin.goalHeight - postMargin.offsetHeight)
+        .attr('height', postMargin.goalHeight)
+        .attr('width', 10)
+        .style('fill', '#fff');
+
+    field.append('rect')
+        .attr('x', postMargin.offsetWidth + postMargin.gapWidth*3)
+        .attr('y', -postMargin.pointHeight - postMargin.offsetHeight)
+        .attr('height', postMargin.pointHeight)
+        .attr('width', 10)
+        .style('fill', '#fff');
+
+    let goals = svg.append('g')
+        .attr('transform', 'translate(' + margin.width/2 + ',' + (margin.height - 50) + ')');
+
+    let displayPoints = svg.append('g')
+        .attr('transform', 'translate(' + (margin.width - 190) + ',' + 75 + ')');
+
+    displayPoints.append('text')
+        .attr('id', 'teamScore')
+        .text('0.0')
+        .style('font-size', '60px')
+        .style('font-weight', 'bold');
+
+    let team = svg.append('g')
+        .attr('transform', 'translate(' + 20 + ',' + 20 + ')');
+
+    team.selectAll('image')
+        .data(teams)
+        .enter().append('image')
+        .attr('xlink:href', function(d) {return logo[d]; })
+        .classed('interactive', true)
+        .datum(function(d) {return d;})
+        .on('mouseover', scrollTeams)
+        .on('click', selectTeam);
+
+    let goalData;
+    let activeTeam = teams[teams.length - 1];
+    let activeShots;
+
+    let start = Date.now();
+    let paused = false;
+    let count = 0;
+
+    d3.timer(animate);
+
+    d3.json("goals.json", function(data) {
+        goalData = data;
+        generateActiveShots();
+    });
+
+    function animate() {
+        if (!paused) {
+            let duration = 3000;
+            if (activeShots.length < 1) {
+                goals.selectAll('ellipse').remove();
+                goals.selectAll('image').remove();
+                goals.selectAll('text').remove();
+                goals.selectAll('path').remove();
+                d3.select('#teamScore').text('0.0');
+                generateActiveShots();
+                start = Date.now();
+                count = 0;
+            }
+            let t = Date.now() - start;
+            if (count < t) {
+                goals.selectAll('ellipse').remove();
+                goals.selectAll('image').remove();
+                goals.selectAll('text').remove();
+                goals.selectAll('.new')
+                    .classed('old', true)
+                    .classed('new', false);
+                kickGoal(duration-50);
+
+                count += duration;
+            }
+        } else if(paused && count != 0) {
+            goals.selectAll('ellipse').remove();
+            goals.selectAll('image').remove();
+            goals.selectAll('text').remove();
+            goals.selectAll('path').remove();
+            d3.select('#teamScore').text('0.0');
+            count = 0;
+        }
+    }
+
+    function kickGoal(duration) {
+
+        let index = Math.floor(Math.random()*activeShots.length);
+        let player = activeShots[index][0];
+        let jumperNum = activeShots[index][1];
+        let score = activeShots[index][2];
+
+        activeShots.splice(index,1);
+
+        goals.append('path')
+            .datum(guernsey)
+            .classed('line', true)
+            .style('stroke', '#000')
+            .style('stroke-width', '2px')
+            .style('fill', colour[activeTeam])
+            .attr('transform', 'translate(' + 300 + ',' + (-340) + ')')
+            .attr('d', d3.line()
+                .curve(d3.curveLinear)
+                .x(function(d) { return d.x; })
+                .y(function(d) { return d.y; })
+            );
+
+        console.log(activeTeam);
+        goals.append('text')
+            .attr('x', 329.5 - jumperNum.toString().length*4.5)
+            .attr('y', -320)
+            .text(jumperNum)
+            .style('fill', (activeTeam == 'Collingwood' || activeTeam == 'Carlton') ? '#fff' : '#000')
+            .style('font-size', '22px')
+            .style('font-weight', 'bold');
+
+        goals.append('text')
+            .attr('x', 315 - player.length*3)
+            .attr('y', -280)
+            .text(player)
+            .style('fill', '#000')
+            .style('font-size', '18px')
+            .style('font-weight', 'bold');
+
+        let tempScore = d3.select('#teamScore').text();
+        let tempIndex = tempScore.indexOf('.');
+        let tempGoal = tempScore.substring(0,tempIndex);
+        let tempPoint = tempScore.substring(tempIndex + 1,tempScore.length);
+        if (score == 'point') {
+            tempPoint = tempPoint*1 + 1;
+        } else {
+            tempGoal = tempGoal*1 + 1;
+        }
+        d3.select('#teamScore')
+            .text(tempGoal + '.' + tempPoint);
+
+
+
+        // generate randomised end location within a specific range
+        let xRange = 100;
+        let randomX = (Math.random()*xRange) - (xRange/2);
+        let yRange = 100;
+        let randomY = (Math.random()*yRange) - (yRange/2);
+        if(score == 'point') {
+            let side = Math.random() < 0.5 ? 'left' : 'right';
+            randomX += postMargin.gapWidth*(side == 'left' ? -1 : 1);
+        }
+
+        randomX = randomX == 0 ? 0.0001 : randomX;
+        let pathData = [
+            { "x": 0,   "y": 0},
+            { "x": randomX/2,  "y":  -350 + randomY},
+            { "x": randomX,  "y":  -250 + randomY}
+        ];
+
+        let path = goals.append('path')
+            .datum(pathData)
+            .classed('line', true)
+            .style('stroke-width', '2px')
+            .style('fill-opacity', 0)
+            .attr('d', d3.line()
+                .curve(d3.curveCardinal)
+                .x(function(d) { return d.x; })
+                .y(function(d) { return d.y; })
+            )
+            .classed('new', true);
+
+        let ball = goals.append('ellipse')
+            .attr('rx', 10)
+            .attr('ry', 15)
+            .style('fill', 'E3170D')
+            .classed('new', true);
+
+        transition();
+
+        function transition() {
+            ball.transition()
+                .duration(duration)
+                .attrTween('transform', translateAlong(path.node()));
+        }
+    }
+
+    function translateAlong(path) {
+        let l = path.getTotalLength();
+        return function(d, i, a) {
+            return function(t) {
+                let p = path.getPointAtLength(t*l);
+                return 'translate(' + p.x + ',' + p.y + ')';
+            };
+        };
+    }
+
+    d3.selection.prototype.moveToFront = function() {
+        return this.each(function(){
+            this.parentNode.appendChild(this);
+        });
+    };
+
+    function scrollTeams() {
+        paused = true;
+        team.selectAll('image')
+            .transition()
+            .attr('y', function(d,i) {return 60*i; })
+    }
+
+    function selectTeam() {
+        let selectedTeam = d3.select(this);
+        selectedTeam.moveToFront();
+        activeTeam = d3.select(this).datum();
+        generateActiveShots();
+        paused = false;
+        start = Date.now();
+
+        team.selectAll('image')
+            .transition()
+            .attr('y', 0);
+    }
+
+    function generateActiveShots() {
+        activeShots = [];
+        let teamData = goalData[activeTeam];
+        for(let i = 0; i < teamData.length; i++) {
+            let goalCount = teamData[i]['goals'];
+            let pointCount = teamData[i]['points'];
+
+            for(let j = 0; j < goalCount; j++) {
+                let temp = [teamData[i]['name'], teamData[i]['number'], 'goal'];
+                activeShots.push(temp);
+            }
+
+            for(let k = 0; k < pointCount; k++) {
+                let temp = [teamData[i]['name'], teamData[i]['number'], 'point'];
+                activeShots.push(temp);
+            }
+        }
+    }
+
+</script>
+
+</body>
+</html>
