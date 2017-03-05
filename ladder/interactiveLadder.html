@@ -30,6 +30,11 @@
             cursor: pointer;
         }
 
+        .uncertainGame {
+            stroke-opacity: 0.7;
+            opacity: 0.7;
+        }
+
         .uncertain {
             opacity: 0.5;
         }
@@ -49,6 +54,7 @@
     const width = 1100;
     const margin = {'x': 140, 'y': 80, 'gapX': 90, 'gapY': 100};
     const teams = ['Adelaide', 'Brisbane', 'Bulldogs', 'Carlton', 'Collingwood', 'Fremantle', 'GWS', 'Melbourne'];
+
     const colour = {
         'Adelaide': '#ffe303',
         'Brisbane': '#b15928',
@@ -79,10 +85,6 @@
         [['Melbourne','Fremantle'],['GWS','Bulldogs'],['Collingwood','Adelaide'],['Carlton','Brisbane']]
     ];
 
-    // split points into each round
-    // only need to modify on uncertain rounds
-    // regenerate each time?
-    let points = {'Adelaide': 0, 'Brisbane': 0, 'Bulldogs': 0, 'Carlton': 0, 'Collingwood': 0, 'Fremantle': 0, 'GWS': 0, 'Melbourne': 0};
 
     const certainWin = [
         ['Adelaide', 'Brisbane', 'Bulldogs', 'Carlton'],
@@ -92,155 +94,215 @@
         ['Brisbane', 'Carlton', 'Collingwood', 'GWS']
     ];
     const certainDraw = [[],[],['Fremantle', 'GWS'],[],[]];
+    let points = {'Adelaide': 0, 'Brisbane': 0, 'Bulldogs': 0, 'Carlton': 0, 'Collingwood': 0, 'Fremantle': 0, 'GWS': 0, 'Melbourne': 0};
+    let userChosen = [];
 
     let svg = d3.select('body').append('svg')
         .attr('height', height)
         .attr('width', width);
 
     let background = svg.append('g');
+
+    // grey behind top two teams
     background.append('rect')
         .attr('x', margin.x - 40)
         .attr('y', margin.y + 50)
         .attr('width', 170)
-        .attr('height', 500)
+        .attr('height', 680)
         .style('fill', '#e8e8ee');
 
 
     let ladder = svg.append('g');
+    let sidebar = svg.append('g')
+        .attr('transform', 'translate(' + 830 + ',' + 55 + ')');
 
     let roundNum = 0;
 
     listClub();
 
-    generateRound(roundNum, true);
-    listRound(roundNum, true);
+    generateRound(roundNum);
+    d3.selectAll('.round' + roundNum).classed('uncertainGame', false);
+    listRound(roundNum);
     roundNum += 1;
 
-    while(roundNum <= certainWin.length) {
+    generateCertainRounds(roundNum, certainWin, certainDraw);
+    let uncertainWins = initUncertainRounds(certainWin.length + 1);
+    generateUncertainRounds(certainWin.length + 1);
+    generateSidebar(certainWin.length + 1);
+    generatePath();
 
-        addWin(certainWin[roundNum-1]);
-        addDraw(certainDraw[roundNum-1]);
-        sortByPoints();
-        generateRound(roundNum, true);
-        listRound(roundNum, true);
+    function generateCertainRounds(roundNum, certainWin, certainDraw) {
+        while(roundNum <= certainWin.length) {
 
-        roundNum += 1;
+            addWin(certainWin[roundNum-1]);
+            addDraw(certainDraw[roundNum-1]);
+            sortByPoints();
+            generateRound(roundNum);
+            listRound(roundNum);
+
+            d3.selectAll('.round' + roundNum).classed('uncertainGame', false);
+
+            roundNum += 1;
+        }
     }
 
+    function initUncertainRounds(roundNum) {
+        let ret = [];
 
-    const sidebarDim = {'height': 700, 'width': 250};
-    let sidebar = svg.append('g')
-        .attr('transform', 'translate(' + 830 + ',' + 55 + ')');
+        while(roundNum <= fixture.length) {
+            let round = fixture[roundNum-1];
+            let winner = [];
 
-    while(roundNum <= fixture.length) {
-        // generate sidebar
-        let sidebarG = sidebar.append('g')
-            .attr('transform', 'translate(0,' + ((roundNum - certainWin.length - 1) * sidebarDim.height/2) + ')');
+            for(let i = 0; i < round.length; i++) {
+                let team1 = round[i][0];
+                let team2 = round[i][1];
 
-        sidebarG.append('rect')
-            .attr('height', sidebarDim.height/2)
-            .attr('width', sidebarDim.width)
-            .style('fill', '#fff')
-            .style('stroke', '#000')
-            .style('stroke-width', '2px');
+                let temp = points[team1] >= points[team2] ? team1 : team2;
 
-        sidebarG.append('text')
-            .attr('x', 90)
-            .attr('y', 40)
-            .text('Round ' + roundNum)
-            .style('font-size', '20px')
-            .style('font-weight', 'bold');
+                winner.push(temp);
+            }
+            ret.push(winner);
+            roundNum += 1;
+        }
+        return ret;
+    }
 
-        // generate final rounds
-        let round = fixture[roundNum-1];
-        let winner = [];
+    function generateUncertainRounds(roundNum) {
+        while(roundNum <= fixture.length) {
 
+            addWin(uncertainWins[roundNum - certainWin.length - 1]);
+            sortByPoints();
+            generateRound(roundNum);
+            listRound(roundNum);
 
-        for(let i = 0; i < round.length; i++) {
-            let team1 = round[i][0];
-            let team2 = round[i][1];
+            roundNum += 1;
+        }
+    }
 
-            sidebarG.append('image')
-                .attr('xlink:href', logo[team1])
-                .attr('x', 10)
-                .attr('y', 60 + 70*i)
-                .datum(roundNum.toString() + i.toString())
-                .attr('id', team1 + roundNum.toString() + i.toString())
-                .classed('round' + roundNum.toString() + i.toString(), true)
-                .classed('interactive', true)
-                .classed('uncertain', true)
-                .on('click', selectTeam);
+    function generateSidebar(roundNum) {
+        const sidebarDim = {'height': 700, 'width': 250};
+
+        while(roundNum <= fixture.length) {
+
+            let round = fixture[roundNum-1];
+
+            let sidebarG = sidebar.append('g')
+                .attr('transform', 'translate(0,' + ((roundNum - certainWin.length - 1) * sidebarDim.height / 2) + ')');
+
+            sidebarG.append('rect')
+                .attr('height', sidebarDim.height / 2)
+                .attr('width', sidebarDim.width)
+                .style('fill', '#fff')
+                .style('stroke', '#000')
+                .style('stroke-width', '2px');
 
             sidebarG.append('text')
-                .attr('x', 118)
-                .attr('y', 90 + 70*i)
-                .text('vs')
+                .attr('x', 90)
+                .attr('y', 40)
+                .text('Round ' + roundNum)
+                .style('font-size', '20px')
                 .style('font-weight', 'bold');
 
-            sidebarG.append('image')
-                .attr('xlink:href', logo[team2])
-                .attr('x', 160)
-                .attr('y', 60 + 70*i)
-                .datum(roundNum.toString() + i.toString())
-                .attr('id', team1 + roundNum.toString() + i.toString())
-                .classed('round' + roundNum.toString() + i.toString(), true)
-                .classed('interactive', true)
-                .classed('uncertain', true)
-                .on('click', selectTeam);
+            for(let i = 0; i < round.length; i++) {
+                let team1 = round[i][0];
+                let team2 = round[i][1];
 
-            let temp = points[team1] >= points[team2] ? team1 : team2;
+                sidebarG.append('image')
+                    .attr('xlink:href', logo[team1])
+                    .attr('x', 10)
+                    .attr('y', 60 + 70*i)
+                    .datum(roundNum.toString() + i.toString())
+                    .attr('id', team1 + roundNum.toString() + i.toString())
+                    .classed('round' + roundNum.toString() + i.toString(), true)
+                    .classed('interactive', true)
+                    .classed('uncertain', true)
+                    .on('click', selectTeam);
 
-            winner.push(temp);
+                sidebarG.append('text')
+                    .attr('x', 118)
+                    .attr('y', 90 + 70*i)
+                    .text('vs')
+                    .style('font-weight', 'bold');
+
+                sidebarG.append('image')
+                    .attr('xlink:href', logo[team2])
+                    .attr('x', 160)
+                    .attr('y', 60 + 70*i)
+                    .datum(roundNum.toString() + i.toString())
+                    .attr('id', team1 + roundNum.toString() + i.toString())
+                    .classed('round' + roundNum.toString() + i.toString(), true)
+                    .classed('interactive', true)
+                    .classed('uncertain', true)
+                    .on('click', selectTeam);
+            }
+
+            roundNum += 1;
         }
+    }
 
-        addWin(winner);
-        sortByPoints();
-        generateRound(roundNum);
-        listRound(roundNum);
+    function generatePath() {
+        background.selectAll('path').remove();
 
-        roundNum += 1;
+        for (let x = 0; x < teams.length; x++) {
+            let fixedData = ripData(teams[x], 0, fixture.length);
+            background.append('path')
+                .datum(fixedData)
+                .classed('line', true)
+                .style('stroke', colour[teams[x]])
+                .attr('d', d3.line()
+                    .curve(d3.curveMonotoneY)
+                    .x(function(d) { return d.x; })
+                    .y(function(d) { return d.y; })
+                );
+        }
     }
 
     function selectTeam() {
 
         let certainty = d3.select(this).classed('uncertain');
-        let matchUp = d3.select(this).datum();
-        console.log(matchUp);
+        let matchUp = d3.select(this).datum().toString();
+        let round = parseInt(matchUp.substring(0, matchUp.length - 1));
+        let game = matchUp.substring(matchUp.length - 1, matchUp.length);
+        let gameTeams = fixture[round-1][game];
 
         d3.selectAll('.round' + matchUp).classed('uncertain', certainty);
         d3.select(this).classed('uncertain', !certainty);
 
-        // delete and regenerate round?
-        // flow on effects?
-        // delete and regenerate path?
-    }
+        let winner = d3.select('#' + gameTeams[0] + matchUp).classed('uncertain') ? gameTeams[1] : gameTeams[0];
+        let loser = (winner == gameTeams[1]) ? gameTeams[0] : gameTeams[1];
 
-    // regenerate path each new round? Is this memory heavy?
-    for (let x = 0; x < teams.length; x++) {
-        let fixedData = ripData(teams[x], 0, certainWin.length);
-        background.append('path')
-            .datum(fixedData)
-            .classed('line', true)
-            .style('stroke', colour[teams[x]])
-            .attr('d', d3.line()
-                .curve(d3.curveMonotoneY)
-                .x(function(d) { return d.x; })
-                .y(function(d) { return d.y; })
-            );
-    }
+        // remove old rounds
+        for(let i = round; i <= fixture.length; i++) {
+            deleteRound(i);
+            removeWin(uncertainWins[i - certainWin.length - 1]);
 
-    for (let x = 0; x < teams.length; x++) {
-        let variableData = ripData(teams[x], certainWin.length, roundNum - 1);
-        background.append('path')
-            .datum(variableData)
-            .classed('line', true)
-            .style('stroke', colour[teams[x]])
-            .style('stroke-opacity', 0.6)
-            .attr('d', d3.line()
-                .curve(d3.curveMonotoneY)
-                .x(function(d) { return d.x; })
-                .y(function(d) { return d.y; })
-            );
+            let x = userChosen.indexOf(winner + round);
+            if (!(x >= 0)) {
+                userChosen.push(winner + round);
+                userChosen.push(loser + round);
+            }
+            console.log(userChosen);
+        }
+
+        // update with new data
+
+
+        let tempRound = round - certainWin.length - 1;
+        let index = uncertainWins[tempRound].indexOf(loser);
+
+        if (index >= 0) {
+            uncertainWins[tempRound].splice(index, 1);
+            uncertainWins[tempRound].push(winner);
+        }
+
+        generateUncertainRounds(round);
+
+        for(let j = 0; j < userChosen.length; j++) {
+            d3.select('#' + userChosen[j]).classed('uncertainGame', false);
+            d3.select('#' + userChosen[j] + 'text').classed('uncertainGame', false);
+        }
+
+        generatePath();
     }
 
 </script>

@@ -2,7 +2,7 @@
  * Created by Alex on 27/02/2017.
  */
 
-function generateRound(roundNum, fixed) {
+function generateRound(roundNum) {
     ladder.append('g')
         .attr('id', 'round' + roundNum)
         .selectAll('circle')
@@ -13,7 +13,8 @@ function generateRound(roundNum, fixed) {
         .attr('r', 20)
         .attr('id', function(d) {return d + roundNum; })
         .style('stroke', function(d) {return colour[d]; })
-        .style('stroke-opacity', fixed ? 1 : 0.5);
+        .classed('uncertainGame', true)
+        .classed('round' + roundNum, true);
 
     ladder.select('#round' + roundNum).selectAll('text')
         .data(teams)
@@ -22,14 +23,18 @@ function generateRound(roundNum, fixed) {
         .attr('y', margin.gapY*roundNum + margin.y + 6)
         .attr('id', function(d) {return d + roundNum + 'text'})
         .text(function(d) {return points[d]; })
-        .style('opacity', fixed ? 1 : 0.5);
+        .classed('uncertainGame', true)
+        .classed('round' + roundNum, true);
 }
 
-function listRound(roundNum, fixed) {
+function deleteRound(i) {
+    d3.select('#round' + i).remove();
+}
+
+function listRound(roundNum) {
     ladder.select('#round' + roundNum).append('text')
         .attr('x', 30)
         .attr('y', margin.gapY*roundNum + margin.y + 5)
         .text('Rd ' + roundNum)
-        .style('font-weight', 'bold')
-        .style('opacity', fixed ? 1 : 0.5);
+        .style('font-weight', 'bold');
 }

@@ -20,6 +20,12 @@ function addWin(win) {
     }
 }
 
+function removeWin(win) {
+    for (let i = 0; i < win.length; i++) {
+        points[win[i]] -= 4;
+    }
+}
+
 function addDraw(draw) {
     for (let i = 0; i < draw.length; i++) {
         points[draw[i]] += 2;
